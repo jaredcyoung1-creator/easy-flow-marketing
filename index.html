@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Easy Flow Marketing Command</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0D1B2A;color:#e2e8f0;min-height:100vh}
+:root{
+  --navy:#0D1B2A;--navy2:#111f33;--navy3:#1a2d45;--navy4:#1e3a5f;
+  --orange:#FFB800;--cyan:#00C8E0;--teal:#00A896;--green:#22C55E;
+  --red:#ef4444;--purple:#8b5cf6;--muted:#64748b;--light:#94a3b8;
+  --white:#f1f5f9;--border:#1e3a5f;--card:#111f33;
+}
+input,textarea,select{background:#0a1628;border:1px solid var(--border);color:#e2e8f0;border-radius:6px;padding:8px 12px;width:100%;font-size:13px;transition:border .15s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,200,224,.1)}
+button{cursor:pointer;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;transition:all .15s;white-space:nowrap}
+button:hover{filter:brightness(1.12)}
+button:disabled{opacity:.4;cursor:not-allowed}
+.btn-orange{background:var(--orange);color:#000}
+.btn-cyan{background:var(--cyan);color:#000}
+.btn-teal{background:var(--teal);color:#fff}
+.btn-green{background:var(--green);color:#000}
+.btn-red{background:var(--red);color:#fff}
+.btn-purple{background:var(--purple);color:#fff}
+.btn-ghost{background:var(--navy3);color:#e2e8f0;border:1px solid var(--border)}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px;border-radius:4px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.b-pending{background:#1e3a5f;color:#60a5fa}
+.b-yes{background:#14532d;color:#4ade80}
+.b-no{background:#450a0a;color:#f87171}
+.b-suggest{background:#431407;color:#fb923c}
+.b-scheduled{background:#0c4a6e;color:#38bdf8}
+.b-published{background:#166534;color:#86efac}
+.b-buffer{background:#1e1b4b;color:#a78bfa}
+.b-draft{background:#1e293b;color:#64748b}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--navy2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;flex-wrap:wrap;gap:8px}
+nav{display:flex;gap:3px;padding:10px 16px;background:var(--navy2);border-bottom:1px solid var(--border);overflow-x:auto}
+nav button{background:transparent;color:var(--muted);padding:7px 14px;border-radius:6px;font-size:13px;flex-shrink:0}
+nav button.active{background:var(--navy3);color:var(--orange);border:1px solid var(--border)}
+.page{padding:16px 20px;max-width:1100px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:700px){.grid2,.grid3,.grid4{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+label{font-size:11px;color:var(--light);display:block;margin-bottom:4px;margin-top:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+h2{font-size:18px;font-weight:800;color:var(--white);margin-bottom:14px}
+h3{font-size:13px;font-weight:700;color:var(--white);margin-bottom:8px}
+.tag{display:inline-block;background:var(--navy3);color:var(--cyan);border-radius:4px;padding:1px 7px;font-size:11px;margin:1px;border:1px solid var(--border)}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:200;padding:12px}
+.modal{background:var(--navy2);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%;max-width:680px;max-height:92vh;overflow-y:auto}
+.review-card{background:var(--navy3);border:2px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;transition:border-color .2s}
+.review-card.yes{border-color:var(--green)}
+.review-card.no{border-color:var(--red)}
+.review-card.suggest{border-color:var(--orange)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-day{min-height:60px;background:var(--navy3);border-radius:5px;padding:5px;font-size:11px;border:1px solid transparent}
+.cal-day.today{border-color:var(--cyan)}
+.cal-event{border-radius:3px;padding:2px 4px;font-size:10px;font-weight:700;margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer}
+.ev-approved{background:var(--orange);color:#000}
+.ev-buffer{background:var(--purple);color:#fff}
+.ev-scheduled{background:var(--teal);color:#fff}
+.ev-published{background:var(--green);color:#000}
+pre{background:#0a1628;border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;overflow-x:auto;color:var(--cyan);line-height:1.8;white-space:pre-wrap;word-break:break-all}
+.stat-box{background:var(--navy3);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.stat-num{font-size:30px;font-weight:800;color:var(--orange);line-height:1}
+.stat-label{font-size:11px;color:var(--muted);margin-top:4px}
+.section-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:var(--muted);border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.media-icon{width:44px;height:44px;border-radius:5px;background:var(--navy4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#000;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border)}
+.step-row:last-child{border-bottom:none}
+.alert{border-radius:8px;padding:12px 14px;font-size:13px;line-height:1.6;margin-bottom:12px}
+.alert-info{background:#0c2a4a;border:1px solid var(--cyan);color:#7dd3fc}
+.alert-success{background:#052e16;border:1px solid var(--green);color:#86efac}
+.alert-warn{background:#431407;border:1px solid var(--orange);color:#fed7aa}
+.copy-btn{font-size:11px;padding:3px 10px;background:var(--navy4);border:1px solid var(--border);color:var(--light);border-radius:4px;cursor:pointer}
+.copy-btn:hover{border-color:var(--cyan);color:var(--cyan)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback}=React;
+const POSTS_KEY="efs_posts_v3";
+const ENV_KEY="efs_env_v3";
+const AI_TOK_KEY="efs_ai_tok";
+const AUTH_KEY="efs_auth_v3";
+const PASS_KEY="efs_pass";
+const DEFAULT_PASS="easyflow2025";
+const PLATFORMS=["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Pinterest","Threads"];
+const MEDIA_TYPES=["Image Post","Reel","Short Video","Story","Carousel","Text Post","Blog","Newsletter","Ad Creative","YouTube Video","Other"];
+const PLATFORM_CFG={
+  "Instagram":  {days:[2,4,6],time:"11:00",note:"Tue/Thu/Sat 11am — peak engagement"},
+  "Facebook":   {days:[3,5,0],time:"13:00",note:"Wed/Fri/Sun 1pm — highest reach"},
+  "LinkedIn":   {days:[1,2,3],time:"08:00",note:"Mon–Wed 8am — professional hours"},
+  "Twitter/X":  {days:[1,2,3,4,5],time:"09:00",note:"Weekdays 9am — real-time audience"},
+  "TikTok":     {days:[2,4,6],time:"19:00",note:"Tue/Thu/Sat 7pm — prime scroll time"},
+  "YouTube":    {days:[5,6],  time:"15:00",note:"Fri/Sat 3pm — weekend viewing peak"},
+  "Pinterest":  {days:[6,0],  time:"20:00",note:"Sat/Sun 8pm — weekend pinners"},
+  "Threads":    {days:[1,3,5],time:"12:00",note:"Mon/Wed/Fri noon — lunch scroll"},
+};
+const ls=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
+const lss=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const todayStr=()=>new Date().toISOString().split("T")[0];
+const fmtDate=d=>d?new Date(d+"T12:00").toLocaleDateString("en-US",{month:"short",day:"numeric",weekday:"short"}):"—";
+function nextPlatformSlots(platform,fromDate,count){
+  const cfg=PLATFORM_CFG[platform]||{days:[1,3,5],time:"10:00"};
+  const slots=[];let d=new Date(fromDate+"T12:00");
+  while(slots.length<count){if(cfg.days.includes(d.getDay()))slots.push({date:d.toISOString().split("T")[0],time:cfg.time});d.setDate(d.getDate()+1);}
+  return slots;
+}
+function useCopy(){
+  const [copied,setCopied]=useState({});
+  const copy=(k,txt)=>{navigator.clipboard.writeText(txt).then(()=>{setCopied(c=>({...c,[k]:true}));setTimeout(()=>setCopied(c=>({...c,[k]:false})),2000);});};
+  return{copy,copied};
+}
+const STATUS_CLS={"Draft":"b-draft","Pending Review":"b-pending","Needs Changes":"b-suggest","Revised":"b-pending","Approved":"b-yes","Sent to Buffer":"b-buffer","Scheduled":"b-scheduled","Published":"b-published","Rejected":"b-no"};
+function StatusBadge({s}){return<span className={`badge ${STATUS_CLS[s]||"b-draft"}`}>{s}</span>;}
+function DecisionBadge({d}){
+  if(!d||d==="pending")return<span className="badge b-pending">Pending</span>;
+  if(d==="yes")return<span className="badge b-yes">✓ Yes</span>;
+  if(d==="no")return<span className="badge b-no">✗ No</span>;
+  return<span className="badge b-suggest">↩ Revise</span>;
+}
+function MediaIcon({type}){
+  const i={"Reel":"🎬","Short Video":"📱","Story":"⭕","Carousel":"🖼","Image Post":"🖼","Text Post":"📝","Blog":"📄","Newsletter":"📧","Ad Creative":"📢","YouTube Video":"▶️","Other":"📦"};
+  return<div className="media-icon">{i[type]||"📦"}</div>;
+}
+function Login({onLogin}){
+  const [pw,setPw]=useState("");const [err,setErr]=useState("");
+  const check=()=>{const p=localStorage.getItem(PASS_KEY)||DEFAULT_PASS;if(pw===p)onLogin();else setErr("Wrong password.");};
+  return(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",flexDirection:"column",gap:16,padding:16}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:36,marginBottom:6}}>🌊</div>
+        <div style={{fontSize:22,fontWeight:800,color:"#FFB800"}}>Easy Flow Marketing Command</div>
+        <div style={{fontSize:12,color:"#00C8E0",marginTop:2}}>Owner Access Only · One System. Everything Flowing.</div>
+      </div>
+      <div className="card" style={{width:"100%",maxWidth:340}}>
+        <label>Password</label>
+        <input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&check()} autoFocus/>
+        {err&&<div style={{color:"#f87171",fontSize:12,marginTop:6}}>{err}</div>}
+        <button className="btn-orange" style={{width:"100%",marginTop:12}} onClick={check}>Enter</button>
+      </div>
+    </div>
+  );
+}
+function AIPortal({token}){
+  const blank={title:"",body:"",mediaType:"Image Post",platforms:["Instagram"],mediaUrl:"",tags:"",notes:"",aiSource:"Claude",tok:""};
+  const [f,setF]=useState(blank);const [res,setRes]=useState(null);
+  const set=(k,v)=>setF(x=>({...x,[k]:v}));
+  const toggle=p=>set("platforms",f.platforms.includes(p)?f.platforms.filter(x=>x!==p):[...f.platforms,p]);
+  const submit=()=>{
+    if(f.tok!==token){setRes({ok:false,msg:"Invalid upload token."});return;}
+    if(!f.title.trim()||!f.body.trim()){setRes({ok:false,msg:"Title and body required."});return;}
+    const post={...f,id:uid(),status:"Pending Review",decision:"pending",reviewerNote:"",createdAt:Date.now(),scheduledDate:"",scheduledTime:"",source:"ai"};
+    const posts=ls(POSTS_KEY,[]);lss(POSTS_KEY,[...posts,post]);
+    setRes({ok:true,msg:`✅ "${f.title}" submitted!`});setF({...blank});
+  };
+  return(
+    <div style={{maxWidth:580,margin:"32px auto",padding:16}}>
+      <div style={{textAlign:"center",marginBottom:20}}>
+        <div style={{fontSize:22,fontWeight:800,color:"#FFB800"}}>🌊 Easy Flow AI Content Portal</div>
+        <div style={{fontSize:12,color:"#00C8E0"}}>Submit content for owner monthly review</div>
+      </div>
+      <div className="card">
+        <label>Upload Token</label><input type="password" value={f.tok} onChange={e=>set("tok",e.target.value)} placeholder="Token from owner"/>
+        <label>Submitted by</label>
+        <select value={f.aiSource} onChange={e=>set("aiSource",e.target.value)}><option>Claude</option><option>ChatGPT</option><option>Drive Sync</option><option>Other</option></select>
+        <label>Title</label><input value={f.title} onChange={e=>set("title",e.target.value)} placeholder="e.g. Summer lawn care tips reel"/>
+        <label>Caption / Body / Script</label><textarea rows={6} value={f.body} onChange={e=>set("body",e.target.value)} placeholder="Full post content, caption, hashtags, or video script…"/>
+        <label>Media Type</label>
+        <select value={f.mediaType} onChange={e=>set("mediaType",e.target.value)}>{MEDIA_TYPES.map(m=><option key={m}>{m}</option>)}</select>
+        <label>Media URL (image/video/Drive share link)</label><input value={f.mediaUrl} onChange={e=>set("mediaUrl",e.target.value)} placeholder="https://drive.google.com/…"/>
+        <label>Platforms</label>
+        <div className="row" style={{marginTop:4,flexWrap:"wrap",gap:8}}>
+          {PLATFORMS.map(p=>(
+            <label key={p} style={{textTransform:"none",letterSpacing:0,fontSize:12,display:"flex",alignItems:"center",gap:4,cursor:"pointer",color:"#e2e8f0",fontWeight:"normal",marginTop:0}}>
+              <input type="checkbox" checked={f.platforms.includes(p)} onChange={()=>toggle(p)} style={{width:"auto"}}/>{p}
+            </label>
+          ))}
+        </div>
+        <label>Hashtags</label><input value={f.tags} onChange={e=>set("tags",e.target.value)} placeholder="#EasyFlowSystems #LetHexieDoTheRest"/>
+        <label>Notes for Reviewer</label><textarea rows={2} value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Context, inspiration, suggested audio, etc."/>
+        {res&&<div style={{marginTop:10,padding:10,borderRadius:6,background:res.ok?"#052e16":"#450a0a",color:res.ok?"#86efac":"#f87171",fontSize:13}}>{res.msg}</div>}
+        <button className="btn-orange" style={{width:"100%",marginTop:14}} onClick={submit}>Submit for Review</button>
+      </div>
+    </div>
+  );
+}
+async function sendPostToBuffer(post,env){
+  if(!env.bufferToken)return{ok:false,msg:"No Buffer token in Settings."};
+  const profileId=env.profileIds[post.platforms[0]]||"";
+  if(!profileId)return{ok:false,msg:"No Buffer profile ID for "+post.platforms[0]};
+  try{
+    const body=new URLSearchParams({text:post.body,profile_ids:profileId});
+    if(post.scheduledDate){const dt=new Date(post.scheduledDate+"T"+(post.scheduledTime||"10:00"));body.append("scheduled_at",dt.toISOString());}
+    if(post.mediaUrl)body.append("media[link]",post.mediaUrl);
+    const r=await fetch("https://api.bufferapp.com/1/updates/create.json",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Authorization":"Bearer "+env.bufferToken},body});
+    const d=await r.json();
+    if(d.success)return{ok:true,msg:"Sent to Buffer ✓",updateId:d.updates?.[0]?.id};
+    return{ok:false,msg:d.message||"Buffer error"};
+  }catch(e){return{ok:false,msg:"Network: "+e.message};}
+}
+function BatchReview({posts,setPosts,env,onDone}){
+  const pending=posts.filter(p=>!p.decision||p.decision==="pending");
+  const [dec,setDec]=useState(()=>{const d={};pending.forEach(p=>{d[p.id]={d:p.decision||"pending",note:p.reviewerNote||""}});return d;});
+  const [applying,setApplying]=useState(false);const [log,setLog]=useState([]);
+  const set=(id,k,v)=>setDec(x=>({...x,[id]:{...x[id],[k]:v}}));
+  const yesCount=Object.values(dec).filter(x=>x.d==="yes").length;
+  const noCount=Object.values(dec).filter(x=>x.d==="no").length;
+  const sugCount=Object.values(dec).filter(x=>x.d==="suggest").length;
+  const applyAndSchedule=async()=>{
+    setApplying(true);const bufLog=[];
+    const yesPosts=pending.filter(p=>dec[p.id]?.d==="yes");
+    const byPlatform={};
+    yesPosts.forEach(p=>{const pl=p.platforms[0]||"Instagram";if(!byPlatform[pl])byPlatform[pl]=[];byPlatform[pl].push(p);});
+    const schedMap={};
+    Object.entries(byPlatform).forEach(([pl,pls])=>{const slots=nextPlatformSlots(pl,todayStr(),pls.length);pls.forEach((p,i)=>{schedMap[p.id]={date:slots[i]?.date||todayStr(),time:slots[i]?.time||"10:00"};});});
+    const updated=posts.map(p=>{
+      const d=dec[p.id];if(!d)return p;
+      let np={...p,decision:d.d,reviewerNote:d.note};
+      if(d.d==="yes"){np.status="Approved";np.scheduledDate=schedMap[p.id]?.date||"";np.scheduledTime=schedMap[p.id]?.time||"10:00";}
+      else if(d.d==="no")np.status="Rejected";
+      else if(d.d==="suggest")np.status="Needs Changes";
+      return np;
+    });
+    setPosts(updated);
+    if(env.bufferToken){for(const p of updated.filter(x=>x.status==="Approved")){const r=await sendPostToBuffer(p,env);bufLog.push({title:p.title,...r});if(r.ok)setPosts(ps=>ps.map(x=>x.id===p.id?{...x,status:"Sent to Buffer"}:x));}}
+    setLog(bufLog);setApplying(false);if(!bufLog.length)onDone();
+  };
+  if(!pending.length)return(<div style={{textAlign:"center",padding:40}}><div style={{fontSize:40}}>🎉</div><div style={{fontSize:18,fontWeight:700,color:"#FFB800",marginTop:8}}>All caught up!</div><div style={{color:"#64748b",marginTop:4}}>No pending content to review this month.</div></div>);
+  if(log.length)return(<div><div className="alert alert-success" style={{marginBottom:16}}><strong>Review complete + Buffer submissions done!</strong></div><table><thead><tr><th>Post</th><th>Result</th></tr></thead><tbody>{log.map((l,i)=>(<tr key={i}><td>{l.title}</td><td style={{color:l.ok?"#4ade80":"#f87171"}}>{l.ok?"✓ "+l.msg:"✗ "+l.msg}</td></tr>))}</tbody></table><button className="btn-orange" style={{marginTop:14}} onClick={onDone}>Done →</button></div>);
+  return(
+    <div>
+      <div className="grid3" style={{marginBottom:16}}>
+        <div className="stat-box"><div className="stat-num" style={{color:"#4ade80"}}>{yesCount}</div><div className="stat-label">Approved</div></div>
+        <div className="stat-box"><div className="stat-num" style={{color:"#fb923c"}}>{sugCount}</div><div className="stat-label">Need Revision</div></div>
+        <div className="stat-box"><div className="stat-num" style={{color:"#f87171"}}>{noCount}</div><div className="stat-label">Rejected</div></div>
+      </div>
+      {!env.bufferToken&&(<div className="alert alert-warn">⚠️ No Buffer token set — add it in Settings before approving.</div>)}
+      {pending.map(p=>{
+        const d=dec[p.id]||{d:"pending",note:""};
+        return(
+          <div key={p.id} className={`review-card ${d.d!=="pending"?d.d:""}`}>
+            <div className="row" style={{justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:6}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:14,marginBottom:3}}>{p.title}</div>
+                <div className="row" style={{gap:4}}>
+                  <span className="tag">{p.mediaType}</span>
+                  {p.platforms.slice(0,3).map(pl=><span key={pl} className="tag">{pl}</span>)}
+                  {p.platforms.length>3&&<span className="tag">+{p.platforms.length-3}</span>}
+                  {p.aiSource&&<span style={{fontSize:10,color:"#475569"}}>via {p.aiSource}</span>}
+                </div>
+              </div>
+              <DecisionBadge d={d.d}/>
+            </div>
+            {p.mediaUrl&&(<div style={{marginBottom:8}}><a href={p.mediaUrl} target="_blank" rel="noreferrer" style={{color:"#00C8E0",fontSize:12}}>🔗 View Media Asset</a></div>)}
+            <div style={{background:"#0a1628",borderRadius:6,padding:10,fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap",marginBottom:8,maxHeight:130,overflowY:"auto",color:"#cbd5e1"}}>{p.body}</div>
+            {p.tags&&<div style={{fontSize:11,color:"#475569",marginBottom:6}}>{p.tags}</div>}
+            {p.notes&&<div style={{fontSize:12,color:"#64748b",marginBottom:8}}>📝 {p.notes}</div>}
+            <div className="row" style={{gap:6,marginBottom:d.d==="suggest"?8:0}}>
+              <button className="btn-green btn-sm" style={{opacity:d.d==="yes"?1:.5}} onClick={()=>set(p.id,"d","yes")}>✓ Yes</button>
+              <button className="btn-red btn-sm" style={{opacity:d.d==="no"?1:.5}} onClick={()=>set(p.id,"d","no")}>✗ No</button>
+              <button className="btn-orange btn-sm" style={{opacity:d.d==="suggest"?1:.5}} onClick={()=>set(p.id,"d","suggest")}>↩ Needs Revision</button>
+            </div>
+            {d.d==="suggest"&&(<textarea rows={2} value={d.note} onChange={e=>set(p.id,"note",e.target.value)} placeholder="What needs to change?" style={{fontSize:12,marginTop:6}}/>)}
+          </div>
+        );
+      })}
+      <div className="row" style={{justifyContent:"flex-end",marginTop:12,gap:8}}>
+        <div style={{fontSize:12,color:"#64748b",flex:1}}>{yesCount} approve · {sugCount} revise · {noCount} reject<br/><span style={{color:"#8b5cf6",fontSize:11}}>✓ Approved posts auto-schedule to Buffer using platform-optimized timing</span></div>
+        <button className="btn-purple" onClick={applyAndSchedule} disabled={applying||(!yesCount&&!noCount&&!sugCount)}>{applying?"Processing…":"Apply & Send to Buffer →"}</button>
+      </div>
+    </div>
+  );
+}
+function CalendarView({posts,onOpen}){
+  const now=new Date();const [yr,setYr]=useState(now.getFullYear());const [mo,setMo]=useState(now.getMonth());
+  const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DOW=["Su","Mo","Tu","We","Th","Fr","Sa"];
+  const first=new Date(yr,mo,1);const cells=[];
+  for(let i=0;i<first.getDay();i++)cells.push(null);
+  for(let d=1;d<=new Date(yr,mo+1,0).getDate();d++)cells.push(d);
+  const pfd=d=>{const ds=`${yr}-${String(mo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;return posts.filter(p=>p.scheduledDate===ds);};
+  return(
+    <div>
+      <div className="row" style={{marginBottom:12}}>
+        <button className="btn-ghost btn-sm" onClick={()=>{mo===0?(setMo(11),setYr(y=>y-1)):setMo(m=>m-1)}}>‹ Prev</button>
+        <span style={{flex:1,textAlign:"center",fontWeight:800,fontSize:16}}>{MONTHS[mo]} {yr}</span>
+        <button className="btn-ghost btn-sm" onClick={()=>{mo===11?(setMo(0),setYr(y=>y+1)):setMo(m=>m+1)}}>Next ›</button>
+      </div>
+      <div className="cal-grid">
+        {DOW.map(d=><div key={d} style={{textAlign:"center",fontSize:10,color:"#475569",paddingBottom:4,fontWeight:700}}>{d}</div>)}
+        {cells.map((d,i)=>{
+          if(!d)return<div key={`e${i}`} style={{minHeight:60}}/>;
+          const isToday=d===now.getDate()&&mo===now.getMonth()&&yr===now.getFullYear();
+          const dp=pfd(d);
+          return(<div key={d} className={`cal-day${isToday?" today":""}`}>
+            <div style={{fontSize:10,fontWeight:700,color:isToday?"#00C8E0":"#475569"}}>{d}</div>
+            {dp.map(p=>(<div key={p.id} onClick={()=>onOpen(p)} title={p.title} className={`cal-event ${p.status==="Published"?"ev-published":p.status==="Sent to Buffer"?"ev-buffer":p.status==="Scheduled"?"ev-scheduled":"ev-approved"}`}>{p.title.slice(0,10)}{p.title.length>10?"…":""}</div>))}
+          </div>);
+        })}
+      </div>
+    </div>
+  );
+}
+function PostModal({post,onClose,setPosts,env}){
+  const [p,setP]=useState({...post});const [sending,setSending]=useState(false);const [res,setRes]=useState(null);
+  const set=(k,v)=>setP(x=>({...x,[k]:v}));
+  const save=()=>{setPosts(ps=>ps.map(x=>x.id===p.id?p:x));onClose();};
+  const sendBuffer=async()=>{setSending(true);const r=await sendPostToBuffer(p,env);setRes(r);if(r.ok)setPosts(ps=>ps.map(x=>x.id===p.id?{...x,status:"Sent to Buffer"}:x));setSending(false);};
+  return(
+    <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div className="row" style={{justifyContent:"space-between",marginBottom:12}}><div style={{fontWeight:700,fontSize:15,flex:1}}>{p.title}</div><StatusBadge s={p.status}/></div>
+        <label>Status</label><select value={p.status} onChange={e=>set("status",e.target.value)}>{["Draft","Pending Review","Needs Changes","Revised","Approved","Sent to Buffer","Scheduled","Published","Rejected"].map(s=><option key={s}>{s}</option>)}</select>
+        <label>Caption / Body</label><textarea rows={5} value={p.body} onChange={e=>set("body",e.target.value)}/>
+        <div className="grid2"><div><label>Date</label><input type="date" value={p.scheduledDate||""} onChange={e=>set("scheduledDate",e.target.value)}/></div><div><label>Time</label><input type="time" value={p.scheduledTime||"10:00"} onChange={e=>set("scheduledTime",e.target.value)}/></div></div>
+        <label>Media URL</label><input value={p.mediaUrl||""} onChange={e=>set("mediaUrl",e.target.value)} placeholder="https://…"/>
+        <label>Reviewer Note</label><textarea rows={2} value={p.reviewerNote||""} onChange={e=>set("reviewerNote",e.target.value)}/>
+        {res&&<div style={{marginTop:8,padding:8,borderRadius:6,background:res.ok?"#052e16":"#450a0a",color:res.ok?"#86efac":"#f87171",fontSize:12}}>{res.msg}</div>}
+        <div className="row" style={{justifyContent:"flex-end",marginTop:14,gap:8}}>
+          {p.status==="Approved"&&<button className="btn-purple btn-sm" onClick={sendBuffer} disabled={sending}>{sending?"Sending…":"📤 Send to Buffer"}</button>}
+          <button className="btn-ghost btn-sm" onClick={onClose}>Cancel</button>
+          <button className="btn-orange btn-sm" onClick={save}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function AutomationSetup({env,aiToken}){
+  const {copy,copied}=useCopy();
+  const portalUrl=window.location.href.split("?")[0]+"?portal=1";
+  const claudePrompt=`You are the social media content creator for Easy Flow Systems.\n\nBRAND: Navy #0D1B2A, Orange #FFB800, Cyan #00C8E0, Teal #00A896. Slogan: "One System. Everything Flowing." Mascot: Hexie (orange octopus, headset) — never alter. Hashtags: #EasyFlowSystems #LetHexieDoTheRest. Audience: small home service business owners (lawn care, cleaning, contractors).\n\nCreate 20-30 pieces/month: 6 Instagram Reels, 4 TikTok videos, 4 LinkedIn posts, 4 Facebook posts, 3 Carousels, 3 Twitter/X, 2 YouTube Shorts, 2-4 Stories.\n\nSubmit each to: ${portalUrl}\nToken: ${aiToken}\nSource: Claude\nSubmit individually — do not batch.`;
+  const chatgptPrompt=`You are the visual content creator for Easy Flow Systems.\n\nBRAND: Navy #0D1B2A, Orange #FFB800, Cyan #00C8E0, Teal #00A896. Slogan: "One System. Everything Flowing." Mascot: Hexie — use approved assets only, never redesign. Hashtags: #EasyFlowSystems #LetHexieDoTheRest.\n\nCreate images, video concepts, and captions. Upload visuals to shared Google Drive folder and paste the share link in Media URL field.\n\nSubmit each to: ${portalUrl}\nToken: ${aiToken}\nSource: ChatGPT`;
+  const makeJson=`{\n  "token": "${aiToken}",\n  "title": "{{1.name}}",\n  "body": "Auto-imported from Drive — add caption before review",\n  "mediaType": "Image Post",\n  "platforms": ["Instagram", "Facebook"],\n  "mediaUrl": "{{1.webViewLink}}",\n  "aiSource": "Drive Sync",\n  "notes": "File: {{1.name}}"\n}`;
+  return(
+    <div>
+      <h2>Automation Setup</h2>
+      <div className="alert alert-info" style={{marginBottom:16}}>Stack: Google Drive → Make.com → This App → Buffer · Setup ~25 min · All free</div>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">Make.com: Google Drive → App</div>
+        <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.8,marginBottom:10}}>
+          1. make.com → New Scenario<br/>
+          2. Module 1: <strong>Google Drive → Watch Files in Folder</strong> → connect Google → select "Easy Flow Systems"<br/>
+          3. Module 2: <strong>HTTP → Make a Request</strong> → POST → URL below → Body type: Raw/JSON → paste body below<br/>
+          4. Schedule: every 15 min · Activate
+        </div>
+        <div style={{marginBottom:6,fontSize:11,color:"#64748b"}}>POST URL:</div>
+        <div className="row" style={{gap:6,marginBottom:10}}>
+          <code style={{flex:1,background:"#0a1628",padding:"6px 10px",borderRadius:5,fontSize:12,color:"#FFB800",wordBreak:"break-all"}}>{portalUrl}</code>
+          <button className="copy-btn" onClick={()=>copy("url",portalUrl)}>{copied.url?"Copied!":"Copy"}</button>
+        </div>
+        <div style={{marginBottom:6,fontSize:11,color:"#64748b"}}>JSON Body:</div>
+        <pre>{makeJson}</pre>
+        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("make",makeJson)}>{copied.make?"Copied!":"Copy JSON"}</button>
+      </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">Claude System Prompt</div>
+        <pre style={{maxHeight:180,overflowY:"auto"}}>{claudePrompt}</pre>
+        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("cp",claudePrompt)}>{copied.cp?"Copied!":"Copy"}</button>
+      </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">ChatGPT System Prompt</div>
+        <pre style={{maxHeight:180,overflowY:"auto"}}>{chatgptPrompt}</pre>
+        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("gp",chatgptPrompt)}>{copied.gp?"Copied!":"Copy"}</button>
+      </div>
+      <div className="card">
+        <div className="section-label">Platform Schedule (auto-applied on approval)</div>
+        <table><thead><tr><th>Platform</th><th>Schedule</th></tr></thead><tbody>
+          {Object.entries(PLATFORM_CFG).map(([pl,cfg])=>(<tr key={pl}><td style={{fontWeight:600}}>{pl}</td><td style={{color:"#00C8E0",fontSize:12}}>{cfg.note}</td></tr>))}
+        </tbody></table>
+      </div>
+    </div>
+  );
+}
+function Settings({env,setEnvSave,aiToken,setAiToken}){
+  const [loc,setLoc]=useState({...env});const [np,setNp]=useState("");const [ntok,setNtok]=useState(aiToken);
+  const set=(k,v)=>setLoc(e=>({...e,[k]:v}));const setP=(k,v)=>setLoc(e=>({...e,profileIds:{...e.profileIds,[k]:v}}));
+  const save=()=>{setEnvSave(loc);lss(AI_TOK_KEY,ntok);setAiToken(ntok);alert("Saved.");};
+  return(
+    <div>
+      <h2>Settings</h2>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">Buffer API</div>
+        <label>Access Token</label><input type="password" value={loc.bufferToken} onChange={e=>set("bufferToken",e.target.value)} placeholder="Buffer access token"/>
+        <div style={{fontSize:11,color:"#64748b",marginTop:3}}>buffer.com → Settings → Apps → Access Token</div>
+        <h3 style={{marginTop:14}}>Profile IDs</h3>
+        <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>GET https://api.bufferapp.com/1/profiles.json?access_token=YOUR_TOKEN</div>
+        <div className="grid2">{Object.keys(loc.profileIds).map(k=>(<div key={k}><label>{k}</label><input value={loc.profileIds[k]} onChange={e=>setP(k,e.target.value)} placeholder="Profile ID"/></div>))}</div>
+      </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">AI Upload Token</div>
+        <input value={ntok} onChange={e=>setNtok(e.target.value)}/>
+        <div style={{fontSize:11,color:"#64748b",marginTop:3}}>Share with Claude and ChatGPT.</div>
+      </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">Admin Password</div>
+        <input type="password" value={np} onChange={e=>setNp(e.target.value)} placeholder="New password"/>
+        {np&&<button className="btn-ghost btn-sm" style={{marginTop:6}} onClick={()=>{localStorage.setItem(PASS_KEY,np);setNp("");alert("Updated.");}}>Update</button>}
+      </div>
+      <button className="btn-orange" onClick={save}>Save All Settings</button>
+    </div>
+  );
+}
+function App(){
+  const isPortal=new URLSearchParams(window.location.search).get("portal")==="1";
+  const [auth,setAuth]=useState(()=>ls(AUTH_KEY,false));
+  const [posts,setPosts]=useState(()=>ls(POSTS_KEY,[]));
+  const [env,setEnv]=useState(()=>ls(ENV_KEY,{bufferToken:"",profileIds:{Instagram:"",Facebook:"",LinkedIn:"",Twitter:"",TikTok:"",YouTube:"",Pinterest:"",Threads:""},driveFolder:""}));
+  const [aiToken,setAiToken]=useState(()=>localStorage.getItem(AI_TOK_KEY)||(()=>{const t="efs-"+Math.random().toString(36).slice(2,10);localStorage.setItem(AI_TOK_KEY,t);return t;})());
+  const [tab,setTab]=useState("review");const [openPost,setOpenPost]=useState(null);const [reviewDone,setReviewDone]=useState(false);
+  useEffect(()=>lss(POSTS_KEY,posts),[posts]);
+  const setEnvSave=(e)=>{setEnv(e);lss(ENV_KEY,e);};
+  const logout=()=>{setAuth(false);lss(AUTH_KEY,false);};
+  if(isPortal)return<AIPortal token={aiToken}/>;
+  if(!auth)return<Login onLogin={()=>setAuth(true)}/>;
+  const pending=posts.filter(p=>!p.decision||p.decision==="pending").length;
+  const approved=posts.filter(p=>p.status==="Approved").length;
+  const inBuffer=posts.filter(p=>p.status==="Sent to Buffer").length;
+  const total=posts.length;
+  const TABS=[{id:"review",label:"📋 Monthly Review",badge:pending},{id:"all",label:"📁 Content Library"},{id:"calendar",label:"📅 Calendar"},{id:"automation",label:"⚡ Automation Setup"},{id:"settings",label:"⚙ Settings"}];
+  return(
+    <div style={{minHeight:"100vh"}}>
+      <div className="topbar">
+        <div><div style={{fontWeight:800,fontSize:17,color:"#FFB800"}}>🌊 Easy Flow Marketing Command</div><div style={{fontSize:10,color:"#00C8E0",letterSpacing:.5}}>One System. Everything Flowing.</div></div>
+        <div className="row" style={{gap:6}}><span style={{fontSize:11,color:"#475569"}}>{total} posts · {inBuffer} in Buffer</span><button className="btn-ghost btn-sm" onClick={logout}>Log Out</button></div>
+      </div>
+      <nav>
+        {TABS.map(t=>(<button key={t.id} className={tab===t.id?"active":""} onClick={()=>{setTab(t.id);if(t.id==="review")setReviewDone(false);}}>
+          {t.label}{t.badge>0&&<span style={{marginLeft:5,background:"#FFB800",color:"#000",borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:800}}>{t.badge}</span>}
+        </button>))}
+      </nav>
+      <div className="page">
+        {tab==="review"&&(<>
+          <div className="grid4" style={{marginBottom:16}}>
+            <div className="stat-box"><div className="stat-num">{pending}</div><div className="stat-label">Awaiting Review</div></div>
+            <div className="stat-box"><div className="stat-num" style={{color:"#4ade80"}}>{approved}</div><div className="stat-label">Approved</div></div>
+            <div className="stat-box"><div className="stat-num" style={{color:"#a78bfa"}}>{inBuffer}</div><div className="stat-label">In Buffer</div></div>
+            <div className="stat-box"><div className="stat-num" style={{color:"#64748b"}}>{total}</div><div className="stat-label">Total</div></div>
+          </div>
+          {reviewDone?(<div style={{textAlign:"center",padding:40}}><div style={{fontSize:48}}>🎉</div><div style={{fontSize:20,fontWeight:800,color:"#FFB800",marginTop:10}}>Monthly Review Complete!</div><div style={{color:"#64748b",marginTop:6,marginBottom:20}}>Approved posts scheduled and sent to Buffer.</div><div className="row" style={{justifyContent:"center",gap:10}}><button className="btn-ghost" onClick={()=>setTab("calendar")}>View Calendar</button><button className="btn-ghost" onClick={()=>setTab("all")}>View All Content</button></div></div>):(<><h2>Monthly Review Queue</h2><BatchReview posts={posts} setPosts={setPosts} env={env} onDone={()=>setReviewDone(true)}/></>)}
+        </>)}
+        {tab==="all"&&(<>
+          <div className="row" style={{justifyContent:"space-between",marginBottom:14}}><h2 style={{marginBottom:0}}>Content Library ({total})</h2><button className="btn-orange btn-sm" onClick={()=>{const np={id:uid(),title:"Untitled Draft",body:"",mediaType:"Image Post",platforms:["Instagram"],mediaUrl:"",tags:"",notes:"",status:"Draft",decision:"pending",reviewerNote:"",createdAt:Date.now(),scheduledDate:"",scheduledTime:"",aiSource:"Manual",source:"manual"};setPosts(ps=>[np,...ps]);setOpenPost(np);}}>+ New Post</button></div>
+          <table><thead><tr><th>Type</th><th>Title</th><th>Platforms</th><th>Decision</th><th>Status</th><th>Scheduled</th><th></th></tr></thead><tbody>
+            {posts.length===0&&<tr><td colSpan={7} style={{textAlign:"center",color:"#475569",padding:30}}>No content yet.</td></tr>}
+            {posts.map(p=>(<tr key={p.id}><td><MediaIcon type={p.mediaType}/></td><td style={{fontWeight:600,maxWidth:160}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.title}</div><div style={{fontSize:10,color:"#475569"}}>{p.aiSource}</div></td><td>{p.platforms.slice(0,2).map(pl=><span key={pl} className="tag">{pl}</span>)}{p.platforms.length>2&&<span className="tag">+{p.platforms.length-2}</span>}</td><td><DecisionBadge d={p.decision}/></td><td><StatusBadge s={p.status}/></td><td style={{fontSize:12,color:"#64748b"}}>{fmtDate(p.scheduledDate)}</td><td><div className="row" style={{gap:4}}><button className="btn-ghost btn-xs" onClick={()=>setOpenPost(p)}>Edit</button><button className="btn-red btn-xs" onClick={()=>{if(confirm("Delete?"))setPosts(ps=>ps.filter(x=>x.id!==p.id))}}>✕</button></div></td></tr>))}
+          </tbody></table>
+        </>)}
+        {tab==="calendar"&&(<><h2>Campaign Calendar</h2><CalendarView posts={posts} onOpen={setOpenPost}/></>)}
+        {tab==="automation"&&<AutomationSetup env={env} aiToken={aiToken}/>}
+        {tab==="settings"&&<Settings env={env} setEnvSave={setEnvSave} aiToken={aiToken} setAiToken={setAiToken}/>}
+      </div>
+      {openPost&&<PostModal post={openPost} onClose={()=>setOpenPost(null)} setPosts={setPosts} env={env}/>}
+    </div>
+  );
+}
+ReactDOM.render(<App/>,document.getElementById("root"));
+</script>
+</body>
+</html>
