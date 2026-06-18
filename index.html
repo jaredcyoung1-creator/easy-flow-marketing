@@ -94,14 +94,19 @@ tr:last-child td{border-bottom:none}
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback}=React;
+
+// ── CONSTANTS ─────────────────────────────────────────────────────────────────
 const POSTS_KEY="efs_posts_v3";
 const ENV_KEY="efs_env_v3";
 const AI_TOK_KEY="efs_ai_tok";
 const AUTH_KEY="efs_auth_v3";
 const PASS_KEY="efs_pass";
 const DEFAULT_PASS="easyflow2025";
+
 const PLATFORMS=["Instagram","Facebook","LinkedIn","Twitter/X","TikTok","YouTube","Pinterest","Threads"];
 const MEDIA_TYPES=["Image Post","Reel","Short Video","Story","Carousel","Text Post","Blog","Newsletter","Ad Creative","YouTube Video","Other"];
+
+// Platform best-practice schedule
 const PLATFORM_CFG={
   "Instagram":  {days:[2,4,6],time:"11:00",note:"Tue/Thu/Sat 11am — peak engagement"},
   "Facebook":   {days:[3,5,0],time:"13:00",note:"Wed/Fri/Sun 1pm — highest reach"},
@@ -112,22 +117,31 @@ const PLATFORM_CFG={
   "Pinterest":  {days:[6,0],  time:"20:00",note:"Sat/Sun 8pm — weekend pinners"},
   "Threads":    {days:[1,3,5],time:"12:00",note:"Mon/Wed/Fri noon — lunch scroll"},
 };
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
 const ls=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
 const lss=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const todayStr=()=>new Date().toISOString().split("T")[0];
 const fmtDate=d=>d?new Date(d+"T12:00").toLocaleDateString("en-US",{month:"short",day:"numeric",weekday:"short"}):"—";
+
 function nextPlatformSlots(platform,fromDate,count){
   const cfg=PLATFORM_CFG[platform]||{days:[1,3,5],time:"10:00"};
   const slots=[];let d=new Date(fromDate+"T12:00");
-  while(slots.length<count){if(cfg.days.includes(d.getDay()))slots.push({date:d.toISOString().split("T")[0],time:cfg.time});d.setDate(d.getDate()+1);}
+  while(slots.length<count){
+    if(cfg.days.includes(d.getDay()))slots.push({date:d.toISOString().split("T")[0],time:cfg.time});
+    d.setDate(d.getDate()+1);
+  }
   return slots;
 }
+
 function useCopy(){
   const [copied,setCopied]=useState({});
   const copy=(k,txt)=>{navigator.clipboard.writeText(txt).then(()=>{setCopied(c=>({...c,[k]:true}));setTimeout(()=>setCopied(c=>({...c,[k]:false})),2000);});};
   return{copy,copied};
 }
+
+// ── BADGES ────────────────────────────────────────────────────────────────────
 const STATUS_CLS={"Draft":"b-draft","Pending Review":"b-pending","Needs Changes":"b-suggest","Revised":"b-pending","Approved":"b-yes","Sent to Buffer":"b-buffer","Scheduled":"b-scheduled","Published":"b-published","Rejected":"b-no"};
 function StatusBadge({s}){return<span className={`badge ${STATUS_CLS[s]||"b-draft"}`}>{s}</span>;}
 function DecisionBadge({d}){
@@ -140,6 +154,8 @@ function MediaIcon({type}){
   const i={"Reel":"🎬","Short Video":"📱","Story":"⭕","Carousel":"🖼","Image Post":"🖼","Text Post":"📝","Blog":"📄","Newsletter":"📧","Ad Creative":"📢","YouTube Video":"▶️","Other":"📦"};
   return<div className="media-icon">{i[type]||"📦"}</div>;
 }
+
+// ── LOGIN ─────────────────────────────────────────────────────────────────────
 function Login({onLogin}){
   const [pw,setPw]=useState("");const [err,setErr]=useState("");
   const check=()=>{const p=localStorage.getItem(PASS_KEY)||DEFAULT_PASS;if(pw===p)onLogin();else setErr("Wrong password.");};
@@ -159,7 +175,9 @@ function Login({onLogin}){
     </div>
   );
 }
-function AIPortal({token}){
+
+// ── AI PORTAL ─────────────────────────────────────────────────────────────────
+function AIPortal({token,onSubmit}){
   const blank={title:"",body:"",mediaType:"Image Post",platforms:["Instagram"],mediaUrl:"",tags:"",notes:"",aiSource:"Claude",tok:""};
   const [f,setF]=useState(blank);const [res,setRes]=useState(null);
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
@@ -169,7 +187,8 @@ function AIPortal({token}){
     if(!f.title.trim()||!f.body.trim()){setRes({ok:false,msg:"Title and body required."});return;}
     const post={...f,id:uid(),status:"Pending Review",decision:"pending",reviewerNote:"",createdAt:Date.now(),scheduledDate:"",scheduledTime:"",source:"ai"};
     const posts=ls(POSTS_KEY,[]);lss(POSTS_KEY,[...posts,post]);
-    setRes({ok:true,msg:`✅ "${f.title}" submitted!`});setF({...blank});
+    setRes({ok:true,msg:`✅ "${f.title}" submitted!`});
+    setF({...blank});
   };
   return(
     <div style={{maxWidth:580,margin:"32px auto",padding:16}}>
@@ -202,35 +221,62 @@ function AIPortal({token}){
     </div>
   );
 }
+
+// ── BUFFER GRAPHQL API ────────────────────────────────────────────────────────
+const BUFFER_ORG_ID="69ee1759a68a55cbda9be5f8";
+const BUFFER_CHANNEL_IDS={
+  "Instagram":"69ee18465c4c051afae005e4",
+  "TikTok":"6a3211bb38b5579345a36840",
+  "Twitter/X":"6a32120538b5579345a3697c",
+};
 async function sendPostToBuffer(post,env){
   if(!env.bufferToken)return{ok:false,msg:"No Buffer token in Settings."};
-  const profileId=env.profileIds[post.platforms[0]]||"";
-  if(!profileId)return{ok:false,msg:"No Buffer profile ID for "+post.platforms[0]};
+  const platform=post.platforms.find(p=>BUFFER_CHANNEL_IDS[p])||post.platforms[0];
+  const channelId=BUFFER_CHANNEL_IDS[platform]||"";
+  if(!channelId)return{ok:false,msg:`No Buffer channel for ${platform}. Supported: Instagram, TikTok, X.`};
   try{
-    const body=new URLSearchParams({text:post.body,profile_ids:profileId});
-    if(post.scheduledDate){const dt=new Date(post.scheduledDate+"T"+(post.scheduledTime||"10:00"));body.append("scheduled_at",dt.toISOString());}
-    if(post.mediaUrl)body.append("media[link]",post.mediaUrl);
-    const r=await fetch("https://api.bufferapp.com/1/updates/create.json",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Authorization":"Bearer "+env.bufferToken},body});
+    let scheduledAt="";
+    if(post.scheduledDate){scheduledAt=new Date(post.scheduledDate+"T"+(post.scheduledTime||"10:00")).toISOString();}
+    const schedField=scheduledAt?`scheduledAt: "${scheduledAt}",`:"";
+    const mutation=`mutation { createPost(input: { organizationId: "${BUFFER_ORG_ID}", channelId: "${channelId}", content: { text: ${JSON.stringify(post.body)} }, ${schedField} via: "api" }) { ... on Post { id status scheduledAt } ... on CoreWebError { message } } }`;
+    const r=await fetch("https://api.buffer.com/graphql",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+env.bufferToken},
+      body:JSON.stringify({query:mutation})
+    });
     const d=await r.json();
-    if(d.success)return{ok:true,msg:"Sent to Buffer ✓",updateId:d.updates?.[0]?.id};
-    return{ok:false,msg:d.message||"Buffer error"};
+    if(d.errors)return{ok:false,msg:"Buffer: "+d.errors[0]?.message};
+    const result=d.data?.createPost;
+    if(result?.message)return{ok:false,msg:"Buffer: "+result.message};
+    return{ok:true,msg:`Sent to Buffer ✓ (${platform})`};
   }catch(e){return{ok:false,msg:"Network: "+e.message};}
 }
+
+// ── BATCH REVIEW ──────────────────────────────────────────────────────────────
 function BatchReview({posts,setPosts,env,onDone}){
   const pending=posts.filter(p=>!p.decision||p.decision==="pending");
   const [dec,setDec]=useState(()=>{const d={};pending.forEach(p=>{d[p.id]={d:p.decision||"pending",note:p.reviewerNote||""}});return d;});
-  const [applying,setApplying]=useState(false);const [log,setLog]=useState([]);
+  const [applying,setApplying]=useState(false);
+  const [log,setLog]=useState([]);
   const set=(id,k,v)=>setDec(x=>({...x,[id]:{...x[id],[k]:v}}));
+
   const yesCount=Object.values(dec).filter(x=>x.d==="yes").length;
   const noCount=Object.values(dec).filter(x=>x.d==="no").length;
   const sugCount=Object.values(dec).filter(x=>x.d==="suggest").length;
+
   const applyAndSchedule=async()=>{
     setApplying(true);const bufLog=[];
+    // Build platform-smart schedule for all "yes" posts
     const yesPosts=pending.filter(p=>dec[p.id]?.d==="yes");
+    // Group by primary platform
     const byPlatform={};
     yesPosts.forEach(p=>{const pl=p.platforms[0]||"Instagram";if(!byPlatform[pl])byPlatform[pl]=[];byPlatform[pl].push(p);});
     const schedMap={};
-    Object.entries(byPlatform).forEach(([pl,pls])=>{const slots=nextPlatformSlots(pl,todayStr(),pls.length);pls.forEach((p,i)=>{schedMap[p.id]={date:slots[i]?.date||todayStr(),time:slots[i]?.time||"10:00"};});});
+    Object.entries(byPlatform).forEach(([pl,pls])=>{
+      const slots=nextPlatformSlots(pl,todayStr(),pls.length);
+      pls.forEach((p,i)=>{schedMap[p.id]={date:slots[i]?.date||todayStr(),time:slots[i]?.time||"10:00"};});
+    });
+
     const updated=posts.map(p=>{
       const d=dec[p.id];if(!d)return p;
       let np={...p,decision:d.d,reviewerNote:d.note};
@@ -240,11 +286,47 @@ function BatchReview({posts,setPosts,env,onDone}){
       return np;
     });
     setPosts(updated);
-    if(env.bufferToken){for(const p of updated.filter(x=>x.status==="Approved")){const r=await sendPostToBuffer(p,env);bufLog.push({title:p.title,...r});if(r.ok)setPosts(ps=>ps.map(x=>x.id===p.id?{...x,status:"Sent to Buffer"}:x));}}
-    setLog(bufLog);setApplying(false);if(!bufLog.length)onDone();
+
+    // Auto-send approved posts to Buffer
+    if(env.bufferToken){
+      for(const p of updated.filter(x=>x.status==="Approved")){
+        const r=await sendPostToBuffer(p,env);
+        bufLog.push({title:p.title,...r});
+        if(r.ok)setPosts(ps=>ps.map(x=>x.id===p.id?{...x,status:"Sent to Buffer"}:x));
+      }
+    }
+    setLog(bufLog);setApplying(false);
+    if(!bufLog.length)onDone();
   };
-  if(!pending.length)return(<div style={{textAlign:"center",padding:40}}><div style={{fontSize:40}}>🎉</div><div style={{fontSize:18,fontWeight:700,color:"#FFB800",marginTop:8}}>All caught up!</div><div style={{color:"#64748b",marginTop:4}}>No pending content to review this month.</div></div>);
-  if(log.length)return(<div><div className="alert alert-success" style={{marginBottom:16}}><strong>Review complete + Buffer submissions done!</strong></div><table><thead><tr><th>Post</th><th>Result</th></tr></thead><tbody>{log.map((l,i)=>(<tr key={i}><td>{l.title}</td><td style={{color:l.ok?"#4ade80":"#f87171"}}>{l.ok?"✓ "+l.msg:"✗ "+l.msg}</td></tr>))}</tbody></table><button className="btn-orange" style={{marginTop:14}} onClick={onDone}>Done →</button></div>);
+
+  if(!pending.length)return(
+    <div style={{textAlign:"center",padding:40}}>
+      <div style={{fontSize:40}}>🎉</div>
+      <div style={{fontSize:18,fontWeight:700,color:"#FFB800",marginTop:8}}>All caught up!</div>
+      <div style={{color:"#64748b",marginTop:4}}>No pending content to review this month.</div>
+    </div>
+  );
+
+  if(log.length)return(
+    <div>
+      <div className="alert alert-success" style={{marginBottom:16}}>
+        <strong>Review complete + Buffer submissions done!</strong>
+      </div>
+      <table>
+        <thead><tr><th>Post</th><th>Result</th></tr></thead>
+        <tbody>
+          {log.map((l,i)=>(
+            <tr key={i}>
+              <td>{l.title}</td>
+              <td style={{color:l.ok?"#4ade80":"#f87171"}}>{l.ok?"✓ "+l.msg:"✗ "+l.msg}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button className="btn-orange" style={{marginTop:14}} onClick={onDone}>Done →</button>
+    </div>
+  );
+
   return(
     <div>
       <div className="grid3" style={{marginBottom:16}}>
@@ -252,7 +334,11 @@ function BatchReview({posts,setPosts,env,onDone}){
         <div className="stat-box"><div className="stat-num" style={{color:"#fb923c"}}>{sugCount}</div><div className="stat-label">Need Revision</div></div>
         <div className="stat-box"><div className="stat-num" style={{color:"#f87171"}}>{noCount}</div><div className="stat-label">Rejected</div></div>
       </div>
-      {!env.bufferToken&&(<div className="alert alert-warn">⚠️ No Buffer token set — add it in Settings before approving.</div>)}
+
+      {!env.bufferToken&&(
+        <div className="alert alert-warn">⚠️ No Buffer token set — approvals will be saved but NOT sent to Buffer. Add your token in Settings first.</div>
+      )}
+
       {pending.map(p=>{
         const d=dec[p.id]||{d:"pending",note:""};
         return(
@@ -269,34 +355,54 @@ function BatchReview({posts,setPosts,env,onDone}){
               </div>
               <DecisionBadge d={d.d}/>
             </div>
-            {p.mediaUrl&&(<div style={{marginBottom:8}}><a href={p.mediaUrl} target="_blank" rel="noreferrer" style={{color:"#00C8E0",fontSize:12}}>🔗 View Media Asset</a></div>)}
+            {p.mediaUrl&&(
+              <div style={{marginBottom:8}}>
+                <a href={p.mediaUrl} target="_blank" rel="noreferrer" style={{color:"#00C8E0",fontSize:12}}>🔗 View Media Asset</a>
+              </div>
+            )}
             <div style={{background:"#0a1628",borderRadius:6,padding:10,fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap",marginBottom:8,maxHeight:130,overflowY:"auto",color:"#cbd5e1"}}>{p.body}</div>
             {p.tags&&<div style={{fontSize:11,color:"#475569",marginBottom:6}}>{p.tags}</div>}
             {p.notes&&<div style={{fontSize:12,color:"#64748b",marginBottom:8}}>📝 {p.notes}</div>}
             <div className="row" style={{gap:6,marginBottom:d.d==="suggest"?8:0}}>
-              <button className="btn-green btn-sm" style={{opacity:d.d==="yes"?1:.5}} onClick={()=>set(p.id,"d","yes")}>✓ Yes</button>
-              <button className="btn-red btn-sm" style={{opacity:d.d==="no"?1:.5}} onClick={()=>set(p.id,"d","no")}>✗ No</button>
+              <button className="btn-green btn-sm" style={{opacity:d.d==="yes"?1:.5}} onClick={()=>set(p.id,"d","yes")}>✓ Yes — Approve</button>
+              <button className="btn-red btn-sm" style={{opacity:d.d==="no"?1:.5}} onClick={()=>set(p.id,"d","no")}>✗ No — Reject</button>
               <button className="btn-orange btn-sm" style={{opacity:d.d==="suggest"?1:.5}} onClick={()=>set(p.id,"d","suggest")}>↩ Needs Revision</button>
             </div>
-            {d.d==="suggest"&&(<textarea rows={2} value={d.note} onChange={e=>set(p.id,"note",e.target.value)} placeholder="What needs to change?" style={{fontSize:12,marginTop:6}}/>)}
+            {d.d==="suggest"&&(
+              <textarea rows={2} value={d.note} onChange={e=>set(p.id,"note",e.target.value)} placeholder="What needs to change? Claude/ChatGPT will see this note." style={{fontSize:12,marginTop:6}}/>
+            )}
           </div>
         );
       })}
+
       <div className="row" style={{justifyContent:"flex-end",marginTop:12,gap:8}}>
-        <div style={{fontSize:12,color:"#64748b",flex:1}}>{yesCount} approve · {sugCount} revise · {noCount} reject<br/><span style={{color:"#8b5cf6",fontSize:11}}>✓ Approved posts auto-schedule to Buffer using platform-optimized timing</span></div>
-        <button className="btn-purple" onClick={applyAndSchedule} disabled={applying||(!yesCount&&!noCount&&!sugCount)}>{applying?"Processing…":"Apply & Send to Buffer →"}</button>
+        <div style={{fontSize:12,color:"#64748b",flex:1}}>
+          {yesCount} approve · {sugCount} revise · {noCount} reject<br/>
+          <span style={{color:"#8b5cf6",fontSize:11}}>✓ Approved posts will auto-schedule to Buffer using platform-optimized timing</span>
+        </div>
+        <button className="btn-purple" onClick={applyAndSchedule} disabled={applying||(!yesCount&&!noCount&&!sugCount)}>
+          {applying?"Processing…":"Apply & Send to Buffer →"}
+        </button>
       </div>
     </div>
   );
 }
+
+// ── CALENDAR ──────────────────────────────────────────────────────────────────
 function CalendarView({posts,onOpen}){
-  const now=new Date();const [yr,setYr]=useState(now.getFullYear());const [mo,setMo]=useState(now.getMonth());
+  const now=new Date();
+  const [yr,setYr]=useState(now.getFullYear());
+  const [mo,setMo]=useState(now.getMonth());
   const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
   const DOW=["Su","Mo","Tu","We","Th","Fr","Sa"];
-  const first=new Date(yr,mo,1);const cells=[];
+  const first=new Date(yr,mo,1);
+  const cells=[];
   for(let i=0;i<first.getDay();i++)cells.push(null);
   for(let d=1;d<=new Date(yr,mo+1,0).getDate();d++)cells.push(d);
-  const pfd=d=>{const ds=`${yr}-${String(mo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;return posts.filter(p=>p.scheduledDate===ds);};
+  const pfd=d=>{
+    const ds=`${yr}-${String(mo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    return posts.filter(p=>p.scheduledDate===ds);
+  };
   return(
     <div>
       <div className="row" style={{marginBottom:12}}>
@@ -310,27 +416,52 @@ function CalendarView({posts,onOpen}){
           if(!d)return<div key={`e${i}`} style={{minHeight:60}}/>;
           const isToday=d===now.getDate()&&mo===now.getMonth()&&yr===now.getFullYear();
           const dp=pfd(d);
-          return(<div key={d} className={`cal-day${isToday?" today":""}`}>
-            <div style={{fontSize:10,fontWeight:700,color:isToday?"#00C8E0":"#475569"}}>{d}</div>
-            {dp.map(p=>(<div key={p.id} onClick={()=>onOpen(p)} title={p.title} className={`cal-event ${p.status==="Published"?"ev-published":p.status==="Sent to Buffer"?"ev-buffer":p.status==="Scheduled"?"ev-scheduled":"ev-approved"}`}>{p.title.slice(0,10)}{p.title.length>10?"…":""}</div>))}
-          </div>);
+          return(
+            <div key={d} className={`cal-day${isToday?" today":""}`}>
+              <div style={{fontSize:10,fontWeight:700,color:isToday?"#00C8E0":"#475569"}}>{d}</div>
+              {dp.map(p=>(
+                <div key={p.id} onClick={()=>onOpen(p)} title={p.title}
+                  className={`cal-event ${p.status==="Published"?"ev-published":p.status==="Sent to Buffer"?"ev-buffer":p.status==="Scheduled"?"ev-scheduled":"ev-approved"}`}>
+                  {p.title.slice(0,10)}{p.title.length>10?"…":""}
+                </div>
+              ))}
+            </div>
+          );
         })}
+      </div>
+      <div className="row" style={{marginTop:10,gap:12,fontSize:11,color:"#64748b",flexWrap:"wrap"}}>
+        <span><span style={{background:"#FFB800",padding:"1px 8px",borderRadius:3,color:"#000"}}>■</span> Approved</span>
+        <span><span style={{background:"#8b5cf6",padding:"1px 8px",borderRadius:3}}>■</span> Sent to Buffer</span>
+        <span><span style={{background:"#00A896",padding:"1px 8px",borderRadius:3}}>■</span> Scheduled</span>
+        <span><span style={{background:"#22C55E",padding:"1px 8px",borderRadius:3,color:"#000"}}>■</span> Published</span>
       </div>
     </div>
   );
 }
+
+// ── POST EDIT MODAL ───────────────────────────────────────────────────────────
 function PostModal({post,onClose,setPosts,env}){
-  const [p,setP]=useState({...post});const [sending,setSending]=useState(false);const [res,setRes]=useState(null);
+  const [p,setP]=useState({...post});
+  const [sending,setSending]=useState(false);const [res,setRes]=useState(null);
   const set=(k,v)=>setP(x=>({...x,[k]:v}));
   const save=()=>{setPosts(ps=>ps.map(x=>x.id===p.id?p:x));onClose();};
   const sendBuffer=async()=>{setSending(true);const r=await sendPostToBuffer(p,env);setRes(r);if(r.ok)setPosts(ps=>ps.map(x=>x.id===p.id?{...x,status:"Sent to Buffer"}:x));setSending(false);};
   return(
     <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
-        <div className="row" style={{justifyContent:"space-between",marginBottom:12}}><div style={{fontWeight:700,fontSize:15,flex:1}}>{p.title}</div><StatusBadge s={p.status}/></div>
-        <label>Status</label><select value={p.status} onChange={e=>set("status",e.target.value)}>{["Draft","Pending Review","Needs Changes","Revised","Approved","Sent to Buffer","Scheduled","Published","Rejected"].map(s=><option key={s}>{s}</option>)}</select>
+        <div className="row" style={{justifyContent:"space-between",marginBottom:12}}>
+          <div style={{fontWeight:700,fontSize:15,flex:1}}>{p.title}</div>
+          <StatusBadge s={p.status}/>
+        </div>
+        <label>Status</label>
+        <select value={p.status} onChange={e=>set("status",e.target.value)}>
+          {["Draft","Pending Review","Needs Changes","Revised","Approved","Sent to Buffer","Scheduled","Published","Rejected"].map(s=><option key={s}>{s}</option>)}
+        </select>
         <label>Caption / Body</label><textarea rows={5} value={p.body} onChange={e=>set("body",e.target.value)}/>
-        <div className="grid2"><div><label>Date</label><input type="date" value={p.scheduledDate||""} onChange={e=>set("scheduledDate",e.target.value)}/></div><div><label>Time</label><input type="time" value={p.scheduledTime||"10:00"} onChange={e=>set("scheduledTime",e.target.value)}/></div></div>
+        <div className="grid2">
+          <div><label>Scheduled Date</label><input type="date" value={p.scheduledDate||""} onChange={e=>set("scheduledDate",e.target.value)}/></div>
+          <div><label>Time</label><input type="time" value={p.scheduledTime||"10:00"} onChange={e=>set("scheduledTime",e.target.value)}/></div>
+        </div>
         <label>Media URL</label><input value={p.mediaUrl||""} onChange={e=>set("mediaUrl",e.target.value)} placeholder="https://…"/>
         <label>Reviewer Note</label><textarea rows={2} value={p.reviewerNote||""} onChange={e=>set("reviewerNote",e.target.value)}/>
         {res&&<div style={{marginTop:8,padding:8,borderRadius:6,background:res.ok?"#052e16":"#450a0a",color:res.ok?"#86efac":"#f87171",fontSize:12}}>{res.msg}</div>}
@@ -343,134 +474,410 @@ function PostModal({post,onClose,setPosts,env}){
     </div>
   );
 }
+
+// ── AUTOMATION SETUP TAB ──────────────────────────────────────────────────────
 function AutomationSetup({env,aiToken}){
   const {copy,copied}=useCopy();
   const portalUrl=window.location.href.split("?")[0]+"?portal=1";
-  const claudePrompt=`You are the social media content creator for Easy Flow Systems.\n\nBRAND: Navy #0D1B2A, Orange #FFB800, Cyan #00C8E0, Teal #00A896. Slogan: "One System. Everything Flowing." Mascot: Hexie (orange octopus, headset) — never alter. Hashtags: #EasyFlowSystems #LetHexieDoTheRest. Audience: small home service business owners (lawn care, cleaning, contractors).\n\nCreate 20-30 pieces/month: 6 Instagram Reels, 4 TikTok videos, 4 LinkedIn posts, 4 Facebook posts, 3 Carousels, 3 Twitter/X, 2 YouTube Shorts, 2-4 Stories.\n\nSubmit each to: ${portalUrl}\nToken: ${aiToken}\nSource: Claude\nSubmit individually — do not batch.`;
-  const chatgptPrompt=`You are the visual content creator for Easy Flow Systems.\n\nBRAND: Navy #0D1B2A, Orange #FFB800, Cyan #00C8E0, Teal #00A896. Slogan: "One System. Everything Flowing." Mascot: Hexie — use approved assets only, never redesign. Hashtags: #EasyFlowSystems #LetHexieDoTheRest.\n\nCreate images, video concepts, and captions. Upload visuals to shared Google Drive folder and paste the share link in Media URL field.\n\nSubmit each to: ${portalUrl}\nToken: ${aiToken}\nSource: ChatGPT`;
-  const makeJson=`{\n  "token": "${aiToken}",\n  "title": "{{1.name}}",\n  "body": "Auto-imported from Drive — add caption before review",\n  "mediaType": "Image Post",\n  "platforms": ["Instagram", "Facebook"],\n  "mediaUrl": "{{1.webViewLink}}",\n  "aiSource": "Drive Sync",\n  "notes": "File: {{1.name}}"\n}`;
+
+  const makeScenario=JSON.stringify({
+    name:"Easy Flow — Google Drive → Marketing Command",
+    description:"Watches Drive folder, submits new files as pending posts via AI portal",
+    trigger:"Google Drive: Watch Files in Folder",
+    action1:"HTTP: POST to AI Portal URL with file metadata + token",
+    notes:[
+      "Set watch folder to: Easy Flow Systems",
+      "POST URL: "+portalUrl,
+      "Token: "+aiToken,
+      "Schedule: every 15 minutes or daily",
+      "Router: Images/Videos → mediaType Image Post, Docs/Text → mediaType Text Post"
+    ]
+  },null,2);
+
+  const claudeSystemPrompt=`You are the social media content creator for Easy Flow Systems.
+
+BRAND RULES:
+- Company: Easy Flow Systems | Products: RepeatFlow + ReferralFlow
+- Colors: Navy #0D1B2A, Orange #FFB800, Cyan #00C8E0, Teal #00A896
+- Slogan: "One System. Everything Flowing."
+- Mascot: Hexie (orange octopus with headset) — never redesign or alter
+- Hashtags: #EasyFlowSystems #LetHexieDoTheRest
+- Audience: Small home service business owners (lawn care, cleaning, contractors)
+- Tone: Confident, friendly, results-focused. Speak to the owner's pain of being overwhelmed.
+
+MONTHLY CONTENT MIX (create 20-30 pieces):
+- 6 Instagram Reels (15-30 sec scripts, hook in first 3 sec)
+- 4 TikTok Short Videos (trending format, relatable small biz pain points)
+- 4 LinkedIn Text Posts (professional, data-driven, tips-focused)
+- 4 Facebook Image Posts (community feel, seasonal)
+- 3 Instagram Carousels (educational, swipe-worthy)
+- 3 Twitter/X posts (punchy, one insight, one CTA)
+- 2 YouTube Shorts scripts (60 sec, problem-solution format)
+- 2-4 Stories (quick tips, behind-the-scenes, polls)
+
+SUBMISSION INSTRUCTIONS:
+For each piece, go to: ${portalUrl}
+- Token: ${aiToken}
+- Set "Submitted by" to: Claude
+- Fill title, full body/script/caption, media type, platforms, hashtags
+- For visuals: describe the image/video concept in the Notes field (ChatGPT or Jared will create the visual separately)
+- Submit each post individually
+
+Do not batch — submit each piece as a separate form submission.`;
+
+  const chatgptPrompt=`You are the visual content creator and social media writer for Easy Flow Systems.
+
+BRAND RULES:
+- Company: Easy Flow Systems | Products: RepeatFlow + ReferralFlow  
+- Colors: Navy #0D1B2A, Orange #FFB800, Cyan #00C8E0, Teal #00A896
+- Slogan: "One System. Everything Flowing."
+- Mascot: Hexie (orange octopus with headset) — use approved Hexie assets only, never redesign
+- Hashtags: #EasyFlowSystems #LetHexieDoTheRest
+- Audience: Small home service business owners (lawn care, cleaning, contractors) in Metro Detroit
+
+YOUR ROLE:
+1. Generate images and short video concepts for marketing content
+2. Write captions, reels scripts, and post copy
+3. Submit each piece to the review portal
+
+SUBMISSION INSTRUCTIONS:
+For each piece, go to: ${portalUrl}
+- Token: ${aiToken}
+- Set "Submitted by" to: ChatGPT
+- Upload any generated images to the shared Google Drive folder and paste the share link in Media URL
+- Submit each post individually
+
+CONTENT FOCUS THIS MONTH:
+Create image posts and Reel scripts featuring:
+- Hexie helping a stressed lawn care/cleaning business owner
+- Before/after: chaos vs Easy Flow running smoothly
+- Seasonal content relevant to current month
+- RepeatFlow: "Never lose a client again" messaging
+- ReferralFlow: "Know exactly which jobs make you money"`;
+
   return(
     <div>
       <h2>Automation Setup</h2>
-      <div className="alert alert-info" style={{marginBottom:16}}>Stack: Google Drive → Make.com → This App → Buffer · Setup ~25 min · All free</div>
-      <div className="card" style={{marginBottom:14}}>
-        <div className="section-label">Make.com: Google Drive → App</div>
-        <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.8,marginBottom:10}}>
-          1. make.com → New Scenario<br/>
-          2. Module 1: <strong>Google Drive → Watch Files in Folder</strong> → connect Google → select "Easy Flow Systems"<br/>
-          3. Module 2: <strong>HTTP → Make a Request</strong> → POST → URL below → Body type: Raw/JSON → paste body below<br/>
-          4. Schedule: every 15 min · Activate
-        </div>
-        <div style={{marginBottom:6,fontSize:11,color:"#64748b"}}>POST URL:</div>
-        <div className="row" style={{gap:6,marginBottom:10}}>
-          <code style={{flex:1,background:"#0a1628",padding:"6px 10px",borderRadius:5,fontSize:12,color:"#FFB800",wordBreak:"break-all"}}>{portalUrl}</code>
-          <button className="copy-btn" onClick={()=>copy("url",portalUrl)}>{copied.url?"Copied!":"Copy"}</button>
-        </div>
-        <div style={{marginBottom:6,fontSize:11,color:"#64748b"}}>JSON Body:</div>
-        <pre>{makeJson}</pre>
-        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("make",makeJson)}>{copied.make?"Copied!":"Copy JSON"}</button>
+
+      <div className="alert alert-info" style={{marginBottom:20}}>
+        <strong>Recommended Stack (all free):</strong> Google Drive → Make.com → This App → Buffer<br/>
+        Setup time: ~25 minutes. No server needed.
       </div>
-      <div className="card" style={{marginBottom:14}}>
+
+      {/* Step-by-step */}
+      <div className="card" style={{marginBottom:16}}>
+        <div className="section-label">Step-by-Step Setup</div>
+
+        <div className="step-row">
+          <div className="step-num">1</div>
+          <div>
+            <div style={{fontWeight:700,marginBottom:4}}>Create a Make.com account</div>
+            <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.7}}>
+              Go to <strong style={{color:"#00C8E0"}}>make.com</strong> → Sign up free.<br/>
+              Free tier gives you 1,000 operations/month — more than enough.
+            </div>
+          </div>
+        </div>
+
+        <div className="step-row">
+          <div className="step-num">2</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,marginBottom:4}}>Create Scenario: Google Drive → AI Portal</div>
+            <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.7,marginBottom:8}}>
+              In Make.com: <strong>Create new scenario</strong><br/>
+              Module 1: <strong>Google Drive → Watch Files in Folder</strong><br/>
+              &nbsp;&nbsp;• Connect your Google account<br/>
+              &nbsp;&nbsp;• Select folder: <strong>Easy Flow Systems</strong><br/>
+              &nbsp;&nbsp;• Watch for: New files<br/>
+              <br/>
+              Module 2: <strong>HTTP → Make a Request</strong><br/>
+              &nbsp;&nbsp;• Method: POST<br/>
+              &nbsp;&nbsp;• URL: <code style={{color:"#FFB800"}}>{portalUrl}</code><br/>
+              &nbsp;&nbsp;• Body type: Raw / JSON<br/>
+              &nbsp;&nbsp;• Body: (copy below)
+            </div>
+            <pre>{`{
+  "token": "${aiToken}",
+  "title": "{{1.name}}",
+  "body": "Auto-imported from Drive — add caption before review",
+  "mediaType": "Image Post",
+  "platforms": ["Instagram", "Facebook"],
+  "mediaUrl": "{{1.webViewLink}}",
+  "aiSource": "Drive Sync",
+  "notes": "File: {{1.name}} | Size: {{1.size}} bytes"
+}`}</pre>
+            <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("make",`{\n  "token": "${aiToken}",\n  "title": "{{1.name}}",\n  "body": "Auto-imported from Drive — add caption before review",\n  "mediaType": "Image Post",\n  "platforms": ["Instagram", "Facebook"],\n  "mediaUrl": "{{1.webViewLink}}",\n  "aiSource": "Drive Sync",\n  "notes": "File: {{1.name}} | Size: {{1.size}} bytes"\n}`)}>{copied.make?"Copied!":"Copy JSON Body"}</button>
+          </div>
+        </div>
+
+        <div className="step-row">
+          <div className="step-num">3</div>
+          <div>
+            <div style={{fontWeight:700,marginBottom:4}}>Set Make.com Schedule</div>
+            <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.7}}>
+              Click the clock icon on your scenario.<br/>
+              Set to run: <strong>Every 15 minutes</strong> or <strong>Once daily at 6am</strong>.<br/>
+              This means whenever you or an AI drops a file in Drive, it auto-appears in your review queue.
+            </div>
+          </div>
+        </div>
+
+        <div className="step-row">
+          <div className="step-num">4</div>
+          <div>
+            <div style={{fontWeight:700,marginBottom:4}}>Connect Buffer in Settings</div>
+            <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.7}}>
+              Go to <strong>Settings tab</strong> in this app.<br/>
+              Add your Buffer Access Token + Profile IDs.<br/>
+              Once connected, approved posts auto-send to Buffer during your monthly review.
+            </div>
+          </div>
+        </div>
+
+        <div className="step-row">
+          <div className="step-num">5</div>
+          <div>
+            <div style={{fontWeight:700,marginBottom:4}}>Give Claude + ChatGPT their prompts</div>
+            <div style={{fontSize:13,color:"#94a3b8"}}>Copy the prompts below and paste into each AI's system/project instructions.</div>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Prompts */}
+      <div className="card" style={{marginBottom:16}}>
         <div className="section-label">Claude System Prompt</div>
-        <pre style={{maxHeight:180,overflowY:"auto"}}>{claudePrompt}</pre>
-        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("cp",claudePrompt)}>{copied.cp?"Copied!":"Copy"}</button>
+        <div style={{fontSize:12,color:"#64748b",marginBottom:8}}>Paste this into your Claude Project instructions (the project you use for Easy Flow marketing):</div>
+        <pre style={{maxHeight:200,overflowY:"auto"}}>{claudeSystemPrompt}</pre>
+        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("claude",claudeSystemPrompt)}>{copied.claude?"Copied!":"Copy Claude Prompt"}</button>
       </div>
-      <div className="card" style={{marginBottom:14}}>
+
+      <div className="card" style={{marginBottom:16}}>
         <div className="section-label">ChatGPT System Prompt</div>
-        <pre style={{maxHeight:180,overflowY:"auto"}}>{chatgptPrompt}</pre>
-        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("gp",chatgptPrompt)}>{copied.gp?"Copied!":"Copy"}</button>
+        <div style={{fontSize:12,color:"#64748b",marginBottom:8}}>Paste this into your ChatGPT marketing conversation or Custom GPT instructions:</div>
+        <pre style={{maxHeight:200,overflowY:"auto"}}>{chatgptPrompt}</pre>
+        <button className="copy-btn" style={{marginTop:6}} onClick={()=>copy("chatgpt",chatgptPrompt)}>{copied.chatgpt?"Copied!":"Copy ChatGPT Prompt"}</button>
       </div>
+
+      {/* Platform Schedule Reference */}
+      <div className="card" style={{marginBottom:16}}>
+        <div className="section-label">Platform-Smart Scheduling (auto-applied on approval)</div>
+        <table>
+          <thead><tr><th>Platform</th><th>Best Days</th><th>Best Time</th><th>Reason</th></tr></thead>
+          <tbody>
+            {Object.entries(PLATFORM_CFG).map(([pl,cfg])=>(
+              <tr key={pl}>
+                <td style={{fontWeight:700}}>{pl}</td>
+                <td style={{color:"#00C8E0"}}>{cfg.note.split(" ")[0]} {cfg.note.split(" ")[1]}</td>
+                <td>{cfg.time}</td>
+                <td style={{color:"#64748b",fontSize:12}}>{cfg.note.split("—")[1]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Your tokens */}
       <div className="card">
-        <div className="section-label">Platform Schedule (auto-applied on approval)</div>
-        <table><thead><tr><th>Platform</th><th>Schedule</th></tr></thead><tbody>
-          {Object.entries(PLATFORM_CFG).map(([pl,cfg])=>(<tr key={pl}><td style={{fontWeight:600}}>{pl}</td><td style={{color:"#00C8E0",fontSize:12}}>{cfg.note}</td></tr>))}
-        </tbody></table>
+        <div className="section-label">Your Keys & URLs</div>
+        <div style={{display:"grid",gap:8}}>
+          {[
+            {label:"AI Upload Portal URL",val:portalUrl,k:"pu"},
+            {label:"AI Upload Token",val:aiToken,k:"at"},
+          ].map(({label,val,k})=>(
+            <div key={k}>
+              <div style={{fontSize:11,color:"#64748b",marginBottom:3}}>{label}</div>
+              <div className="row" style={{gap:6}}>
+                <code style={{flex:1,background:"#0a1628",padding:"6px 10px",borderRadius:5,fontSize:12,color:"#FFB800",wordBreak:"break-all"}}>{val}</code>
+                <button className="copy-btn" onClick={()=>copy(k,val)}>{copied[k]?"Copied!":"Copy"}</button>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
 function Settings({env,setEnvSave,aiToken,setAiToken}){
-  const [loc,setLoc]=useState({...env});const [np,setNp]=useState("");const [ntok,setNtok]=useState(aiToken);
-  const set=(k,v)=>setLoc(e=>({...e,[k]:v}));const setP=(k,v)=>setLoc(e=>({...e,profileIds:{...e.profileIds,[k]:v}}));
+  const [loc,setLoc]=useState({...env});
+  const [np,setNp]=useState("");const [ntok,setNtok]=useState(aiToken);
+  const set=(k,v)=>setLoc(e=>({...e,[k]:v}));
+  const setP=(k,v)=>setLoc(e=>({...e,profileIds:{...e.profileIds,[k]:v}}));
   const save=()=>{setEnvSave(loc);lss(AI_TOK_KEY,ntok);setAiToken(ntok);alert("Saved.");};
   return(
     <div>
       <h2>Settings</h2>
       <div className="card" style={{marginBottom:14}}>
         <div className="section-label">Buffer API</div>
-        <label>Access Token</label><input type="password" value={loc.bufferToken} onChange={e=>set("bufferToken",e.target.value)} placeholder="Buffer access token"/>
+        <label>Access Token</label>
+        <input type="password" value={loc.bufferToken} onChange={e=>set("bufferToken",e.target.value)} placeholder="Buffer access token"/>
         <div style={{fontSize:11,color:"#64748b",marginTop:3}}>buffer.com → Settings → Apps → Access Token</div>
-        <h3 style={{marginTop:14}}>Profile IDs</h3>
-        <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>GET https://api.bufferapp.com/1/profiles.json?access_token=YOUR_TOKEN</div>
-        <div className="grid2">{Object.keys(loc.profileIds).map(k=>(<div key={k}><label>{k}</label><input value={loc.profileIds[k]} onChange={e=>setP(k,e.target.value)} placeholder="Profile ID"/></div>))}</div>
+        <div style={{marginTop:10,background:"#0a1628",borderRadius:6,padding:10,fontSize:12,lineHeight:1.9}}>
+          <strong style={{color:"#FFB800"}}>Connected Buffer Channels:</strong><br/>
+          ✓ Instagram · ✓ TikTok · ✓ X/Twitter<br/>
+          <span style={{color:"#64748b",fontSize:11}}>Channel IDs locked in app code. Contact owner to update.</span>
+        </div>
+      </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">Google Drive</div>
+        <label>Easy Flow Systems Folder URL</label>
+        <input value={loc.driveFolder} onChange={e=>set("driveFolder",e.target.value)} placeholder="https://drive.google.com/drive/folders/…"/>
       </div>
       <div className="card" style={{marginBottom:14}}>
         <div className="section-label">AI Upload Token</div>
         <input value={ntok} onChange={e=>setNtok(e.target.value)}/>
-        <div style={{fontSize:11,color:"#64748b",marginTop:3}}>Share with Claude and ChatGPT.</div>
+        <div style={{fontSize:11,color:"#64748b",marginTop:3}}>Share with Claude and ChatGPT. Rotate anytime.</div>
       </div>
       <div className="card" style={{marginBottom:14}}>
         <div className="section-label">Admin Password</div>
-        <input type="password" value={np} onChange={e=>setNp(e.target.value)} placeholder="New password"/>
-        {np&&<button className="btn-ghost btn-sm" style={{marginTop:6}} onClick={()=>{localStorage.setItem(PASS_KEY,np);setNp("");alert("Updated.");}}>Update</button>}
+        <input type="password" value={np} onChange={e=>setNp(e.target.value)} placeholder="New password (leave blank to keep current)"/>
+        {np&&<button className="btn-ghost btn-sm" style={{marginTop:6}} onClick={()=>{localStorage.setItem(PASS_KEY,np);setNp("");alert("Password updated.");}}>Update Password</button>}
+      </div>
+      <div className="card" style={{marginBottom:14}}>
+        <div className="section-label">Brand Rules (Locked)</div>
+        <div style={{fontSize:12,lineHeight:2,color:"#94a3b8"}}>
+          ✓ Navy #0D1B2A · Orange #FFB800 · Cyan #00C8E0 · Teal #00A896<br/>
+          ✓ Slogan: "One System. Everything Flowing."<br/>
+          ✓ Do not regenerate, redraw, or alter the Easy Flow logo.<br/>
+          ✓ Do not redraw or redesign Hexie mascot. Use approved assets only.
+        </div>
       </div>
       <button className="btn-orange" onClick={save}>Save All Settings</button>
     </div>
   );
 }
+
+// ── ROOT APP ──────────────────────────────────────────────────────────────────
 function App(){
   const isPortal=new URLSearchParams(window.location.search).get("portal")==="1";
   const [auth,setAuth]=useState(()=>ls(AUTH_KEY,false));
   const [posts,setPosts]=useState(()=>ls(POSTS_KEY,[]));
   const [env,setEnv]=useState(()=>ls(ENV_KEY,{bufferToken:"",profileIds:{Instagram:"",Facebook:"",LinkedIn:"",Twitter:"",TikTok:"",YouTube:"",Pinterest:"",Threads:""},driveFolder:""}));
   const [aiToken,setAiToken]=useState(()=>localStorage.getItem(AI_TOK_KEY)||(()=>{const t="efs-"+Math.random().toString(36).slice(2,10);localStorage.setItem(AI_TOK_KEY,t);return t;})());
-  const [tab,setTab]=useState("review");const [openPost,setOpenPost]=useState(null);const [reviewDone,setReviewDone]=useState(false);
+  const [tab,setTab]=useState("review");
+  const [openPost,setOpenPost]=useState(null);
+  const [reviewDone,setReviewDone]=useState(false);
+
   useEffect(()=>lss(POSTS_KEY,posts),[posts]);
   const setEnvSave=(e)=>{setEnv(e);lss(ENV_KEY,e);};
   const logout=()=>{setAuth(false);lss(AUTH_KEY,false);};
+
   if(isPortal)return<AIPortal token={aiToken}/>;
   if(!auth)return<Login onLogin={()=>setAuth(true)}/>;
+
   const pending=posts.filter(p=>!p.decision||p.decision==="pending").length;
   const approved=posts.filter(p=>p.status==="Approved").length;
   const inBuffer=posts.filter(p=>p.status==="Sent to Buffer").length;
   const total=posts.length;
-  const TABS=[{id:"review",label:"📋 Monthly Review",badge:pending},{id:"all",label:"📁 Content Library"},{id:"calendar",label:"📅 Calendar"},{id:"automation",label:"⚡ Automation Setup"},{id:"settings",label:"⚙ Settings"}];
+
+  const TABS=[
+    {id:"review",label:"📋 Monthly Review",badge:pending},
+    {id:"all",label:"📁 Content Library"},
+    {id:"calendar",label:"📅 Calendar"},
+    {id:"automation",label:"⚡ Automation Setup"},
+    {id:"settings",label:"⚙ Settings"},
+  ];
+
   return(
     <div style={{minHeight:"100vh"}}>
       <div className="topbar">
-        <div><div style={{fontWeight:800,fontSize:17,color:"#FFB800"}}>🌊 Easy Flow Marketing Command</div><div style={{fontSize:10,color:"#00C8E0",letterSpacing:.5}}>One System. Everything Flowing.</div></div>
-        <div className="row" style={{gap:6}}><span style={{fontSize:11,color:"#475569"}}>{total} posts · {inBuffer} in Buffer</span><button className="btn-ghost btn-sm" onClick={logout}>Log Out</button></div>
+        <div>
+          <div style={{fontWeight:800,fontSize:17,color:"#FFB800"}}>🌊 Easy Flow Marketing Command</div>
+          <div style={{fontSize:10,color:"#00C8E0",letterSpacing:.5}}>One System. Everything Flowing.</div>
+        </div>
+        <div className="row" style={{gap:6}}>
+          <span style={{fontSize:11,color:"#475569"}}>{total} posts · {inBuffer} in Buffer</span>
+          <button className="btn-ghost btn-sm" onClick={logout}>Log Out</button>
+        </div>
       </div>
       <nav>
-        {TABS.map(t=>(<button key={t.id} className={tab===t.id?"active":""} onClick={()=>{setTab(t.id);if(t.id==="review")setReviewDone(false);}}>
-          {t.label}{t.badge>0&&<span style={{marginLeft:5,background:"#FFB800",color:"#000",borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:800}}>{t.badge}</span>}
-        </button>))}
+        {TABS.map(t=>(
+          <button key={t.id} className={tab===t.id?"active":""} onClick={()=>{setTab(t.id);if(t.id==="review")setReviewDone(false);}}>
+            {t.label}
+            {t.badge>0&&<span style={{marginLeft:5,background:"#FFB800",color:"#000",borderRadius:10,padding:"1px 6px",fontSize:10,fontWeight:800}}>{t.badge}</span>}
+          </button>
+        ))}
       </nav>
+
       <div className="page">
-        {tab==="review"&&(<>
-          <div className="grid4" style={{marginBottom:16}}>
-            <div className="stat-box"><div className="stat-num">{pending}</div><div className="stat-label">Awaiting Review</div></div>
-            <div className="stat-box"><div className="stat-num" style={{color:"#4ade80"}}>{approved}</div><div className="stat-label">Approved</div></div>
-            <div className="stat-box"><div className="stat-num" style={{color:"#a78bfa"}}>{inBuffer}</div><div className="stat-label">In Buffer</div></div>
-            <div className="stat-box"><div className="stat-num" style={{color:"#64748b"}}>{total}</div><div className="stat-label">Total</div></div>
-          </div>
-          {reviewDone?(<div style={{textAlign:"center",padding:40}}><div style={{fontSize:48}}>🎉</div><div style={{fontSize:20,fontWeight:800,color:"#FFB800",marginTop:10}}>Monthly Review Complete!</div><div style={{color:"#64748b",marginTop:6,marginBottom:20}}>Approved posts scheduled and sent to Buffer.</div><div className="row" style={{justifyContent:"center",gap:10}}><button className="btn-ghost" onClick={()=>setTab("calendar")}>View Calendar</button><button className="btn-ghost" onClick={()=>setTab("all")}>View All Content</button></div></div>):(<><h2>Monthly Review Queue</h2><BatchReview posts={posts} setPosts={setPosts} env={env} onDone={()=>setReviewDone(true)}/></>)}
-        </>)}
-        {tab==="all"&&(<>
-          <div className="row" style={{justifyContent:"space-between",marginBottom:14}}><h2 style={{marginBottom:0}}>Content Library ({total})</h2><button className="btn-orange btn-sm" onClick={()=>{const np={id:uid(),title:"Untitled Draft",body:"",mediaType:"Image Post",platforms:["Instagram"],mediaUrl:"",tags:"",notes:"",status:"Draft",decision:"pending",reviewerNote:"",createdAt:Date.now(),scheduledDate:"",scheduledTime:"",aiSource:"Manual",source:"manual"};setPosts(ps=>[np,...ps]);setOpenPost(np);}}>+ New Post</button></div>
-          <table><thead><tr><th>Type</th><th>Title</th><th>Platforms</th><th>Decision</th><th>Status</th><th>Scheduled</th><th></th></tr></thead><tbody>
-            {posts.length===0&&<tr><td colSpan={7} style={{textAlign:"center",color:"#475569",padding:30}}>No content yet.</td></tr>}
-            {posts.map(p=>(<tr key={p.id}><td><MediaIcon type={p.mediaType}/></td><td style={{fontWeight:600,maxWidth:160}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.title}</div><div style={{fontSize:10,color:"#475569"}}>{p.aiSource}</div></td><td>{p.platforms.slice(0,2).map(pl=><span key={pl} className="tag">{pl}</span>)}{p.platforms.length>2&&<span className="tag">+{p.platforms.length-2}</span>}</td><td><DecisionBadge d={p.decision}/></td><td><StatusBadge s={p.status}/></td><td style={{fontSize:12,color:"#64748b"}}>{fmtDate(p.scheduledDate)}</td><td><div className="row" style={{gap:4}}><button className="btn-ghost btn-xs" onClick={()=>setOpenPost(p)}>Edit</button><button className="btn-red btn-xs" onClick={()=>{if(confirm("Delete?"))setPosts(ps=>ps.filter(x=>x.id!==p.id))}}>✕</button></div></td></tr>))}
-          </tbody></table>
-        </>)}
-        {tab==="calendar"&&(<><h2>Campaign Calendar</h2><CalendarView posts={posts} onOpen={setOpenPost}/></>)}
+        {tab==="review"&&(
+          <>
+            <div className="grid4" style={{marginBottom:16}}>
+              <div className="stat-box"><div className="stat-num">{pending}</div><div className="stat-label">Awaiting Review</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:"#4ade80"}}>{approved}</div><div className="stat-label">Approved</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:"#a78bfa"}}>{inBuffer}</div><div className="stat-label">In Buffer</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:"#64748b"}}>{total}</div><div className="stat-label">Total Posts</div></div>
+            </div>
+            {reviewDone?(
+              <div style={{textAlign:"center",padding:40}}>
+                <div style={{fontSize:48}}>🎉</div>
+                <div style={{fontSize:20,fontWeight:800,color:"#FFB800",marginTop:10}}>Monthly Review Complete!</div>
+                <div style={{color:"#64748b",marginTop:6,marginBottom:20}}>Approved posts have been scheduled and sent to Buffer.</div>
+                <div className="row" style={{justifyContent:"center",gap:10}}>
+                  <button className="btn-ghost" onClick={()=>setTab("calendar")}>View Calendar</button>
+                  <button className="btn-ghost" onClick={()=>setTab("all")}>View All Content</button>
+                </div>
+              </div>
+            ):(
+              <>
+                <h2>Monthly Review Queue</h2>
+                <BatchReview posts={posts} setPosts={setPosts} env={env} onDone={()=>setReviewDone(true)}/>
+              </>
+            )}
+          </>
+        )}
+
+        {tab==="all"&&(
+          <>
+            <div className="row" style={{justifyContent:"space-between",marginBottom:14}}>
+              <h2 style={{marginBottom:0}}>Content Library ({total})</h2>
+              <button className="btn-orange btn-sm" onClick={()=>{
+                const np={id:uid(),title:"Untitled Draft",body:"",mediaType:"Image Post",platforms:["Instagram"],mediaUrl:"",tags:"",notes:"",status:"Draft",decision:"pending",reviewerNote:"",createdAt:Date.now(),scheduledDate:"",scheduledTime:"",aiSource:"Manual",source:"manual"};
+                setPosts(ps=>[np,...ps]);setOpenPost(np);
+              }}>+ New Post</button>
+            </div>
+            <table>
+              <thead><tr><th>Type</th><th>Title</th><th>Platforms</th><th>Decision</th><th>Status</th><th>Scheduled</th><th></th></tr></thead>
+              <tbody>
+                {posts.length===0&&<tr><td colSpan={7} style={{textAlign:"center",color:"#475569",padding:30}}>No content yet. Content submitted by Claude, ChatGPT, or Drive Sync will appear here.</td></tr>}
+                {posts.map(p=>(
+                  <tr key={p.id}>
+                    <td><MediaIcon type={p.mediaType}/></td>
+                    <td style={{fontWeight:600,maxWidth:160}}><div style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.title}</div><div style={{fontSize:10,color:"#475569"}}>{p.aiSource}</div></td>
+                    <td>{p.platforms.slice(0,2).map(pl=><span key={pl} className="tag">{pl}</span>)}{p.platforms.length>2&&<span className="tag">+{p.platforms.length-2}</span>}</td>
+                    <td><DecisionBadge d={p.decision}/></td>
+                    <td><StatusBadge s={p.status}/></td>
+                    <td style={{fontSize:12,color:"#64748b"}}>{fmtDate(p.scheduledDate)}</td>
+                    <td>
+                      <div className="row" style={{gap:4}}>
+                        <button className="btn-ghost btn-xs" onClick={()=>setOpenPost(p)}>Edit</button>
+                        <button className="btn-red btn-xs" onClick={()=>{if(confirm("Delete?"))setPosts(ps=>ps.filter(x=>x.id!==p.id))}}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {tab==="calendar"&&(
+          <>
+            <h2>Campaign Calendar</h2>
+            <CalendarView posts={posts} onOpen={setOpenPost}/>
+          </>
+        )}
+
         {tab==="automation"&&<AutomationSetup env={env} aiToken={aiToken}/>}
         {tab==="settings"&&<Settings env={env} setEnvSave={setEnvSave} aiToken={aiToken} setAiToken={setAiToken}/>}
       </div>
+
       {openPost&&<PostModal post={openPost} onClose={()=>setOpenPost(null)} setPosts={setPosts} env={env}/>}
     </div>
   );
 }
+
 ReactDOM.render(<App/>,document.getElementById("root"));
 </script>
 </body>
